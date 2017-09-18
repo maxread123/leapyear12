@@ -1,0 +1,66 @@
+import argparse, socket,calendar
+
+
+def server(interface, port):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # stvori TCP spojnicu
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) # postavi opcije spojnice
+    sock.bind((interface, port)) # povezi spojnicu s mreznim suceljem
+    sock.listen(1)   # osluskuj klijente u redu cekanja velicine 1
+    sc, sockname = sock.accept()
+    while True:
+        message = sc.recv(2046)
+        message = message.decode()
+        message = message.split()
+        if message[0] == "\isLeap":
+            if calendar.isleap(int(message[1])):
+                answer = message[1] + " je prijestupna"
+            else:
+                answer = message[1] + " nije prijestupna"
+        if message[0] == "\\nearLeap":
+            a = int(message[1])
+            b = 0
+            i = 0
+            while True:
+                if calendar.isleap(a + i):
+                    b = 1
+                    break
+                if calendar.isleap(a-i):
+                    b = 2
+                    break
+                i += 1
+            if b == 1:
+                a += i
+            else:
+                a -= i
+            answer = str(a) + " je najbliza prijestupna"
+        if message[0] == "\exit":
+            sc.sendall(message[0].encode())
+            break
+        sc.sendall(answer.encode())
+    sc.close()
+
+def client(host, port):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # stvori TCP spojnicu
+    sock.connect((host, port))  # povezi se s posluziteljem
+    while True:
+        msg = input('>>')
+        sock.sendall(msg.encode())
+        reply = sock.recv(2046).decode()
+        if reply == "\exit":
+            break
+        print(reply)
+    sock.close()
+
+if __name__ == '__main__':
+    choices = {'client': client, 'server': server}
+    parser = argparse.ArgumentParser(description='Salji i primaj preko TCP')
+    parser.add_argument('role', choices=choices, help='mrezna uloga')
+    parser.add_argument('host', help='domacin na kojem posluzitelj ceka poruke;'
+                        ' odnosno klijent salje poruke')
+    parser.add_argument('-p', metavar='PORT', type=int, default=1060,
+                        help='TCP port (pretpostavljeno 1060)')
+    args = parser.parse_args()
+    function = choices[args.role]
+    function(args.host, args.p)
+    
+    ["\\isLeap","1990"]
